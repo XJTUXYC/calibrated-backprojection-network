@@ -19,6 +19,7 @@ import numpy as np
 import torch
 from PIL import Image
 from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
 import datasets, data_utils, eval_utils
 from log_utils import log
 from kbnet_model import KBNetModel
@@ -374,6 +375,7 @@ def train(train_image_path,
 
     log('Begin training...', log_path)
     for epoch in range(1, learning_schedule[-1] + 1):
+        print('epoch ', epoch)
 
         # Set learning rate schedule
         if epoch > learning_schedule[learning_schedule_pos]:
@@ -389,7 +391,7 @@ def train(train_image_path,
             augmentation_schedule_pos = augmentation_schedule_pos + 1
             augmentation_probability = augmentation_probabilities[augmentation_schedule_pos]
 
-        for inputs in train_dataloader:
+        for inputs in tqdm(train_dataloader):
 
             train_step = train_step + 1
 
@@ -452,70 +454,64 @@ def train(train_image_path,
             loss.backward()
             optimizer.step()
 
-            if (train_step % n_summary) == 0:
-                image01 = loss_info.pop('image01')
-                image02 = loss_info.pop('image02')
+        image01 = loss_info.pop('image01')
+        image02 = loss_info.pop('image02')
 
-                depth_model.log_summary(
-                    summary_writer=train_summary_writer,
-                    tag='train',
+        image01 = loss_info.pop('image01')
+        image02 = loss_info.pop('image02')
+
+        depth_model.log_summary(
+            summary_writer=train_summary_writer,
+            tag='train',
+            step=train_step,
+            image0=image0,
+            image01=image01.detach().clone(),
+            image02=image02.detach().clone(),
+            output_depth0=output_depth0.detach().clone(),
+            sparse_depth0=filtered_sparse_depth0,
+            validity_map0=filtered_validity_map_depth0,
+            pose01=pose01,
+            pose02=pose02,
+            scalars=loss_info,
+            n_display=min(n_batch, n_summary_display))
+
+        # Log results and save checkpoints
+        time_elapse = (time.time() - time_start) / 3600
+        time_remain = (n_train_step - train_step) * time_elapse / train_step
+
+        log('Step={:6}/{}  Loss={:.5f}  Time Elapsed={:.2f}h  Time Remaining={:.2f}h'.format(
+            train_step, n_train_step, loss.item(), time_elapse, time_remain),
+            log_path)
+
+        if  validation_available:
+            # Switch to validation mode
+            depth_model.eval()
+
+            with torch.no_grad():
+                best_results = validate(
+                    depth_model=depth_model,
+                    dataloader=val_dataloader,
+                    transforms=val_transforms,
+                    outlier_removal=outlier_removal,
+                    ground_truths=ground_truths,
                     step=train_step,
-                    image0=image0,
-                    image01=image01.detach().clone(),
-                    image02=image02.detach().clone(),
-                    output_depth0=output_depth0.detach().clone(),
-                    sparse_depth0=filtered_sparse_depth0,
-                    validity_map0=filtered_validity_map_depth0,
-                    pose01=pose01,
-                    pose02=pose02,
-                    scalars=loss_info,
-                    n_display=min(n_batch, n_summary_display))
+                    best_results=best_results,
+                    min_evaluate_depth=min_evaluate_depth,
+                    max_evaluate_depth=max_evaluate_depth,
+                    device=device,
+                    summary_writer=val_summary_writer,
+                    n_summary_display=n_summary_display,
+                    log_path=log_path)
 
-            # Log results and save checkpoints
-            if (train_step % n_checkpoint) == 0:
-                time_elapse = (time.time() - time_start) / 3600
-                time_remain = (n_train_step - train_step) * time_elapse / train_step
+            # Switch back to training
+            depth_model.train()
 
-                log('Step={:6}/{}  Loss={:.5f}  Time Elapsed={:.2f}h  Time Remaining={:.2f}h'.format(
-                    train_step, n_train_step, loss.item(), time_elapse, time_remain),
-                    log_path)
+        # Save checkpoints
+        depth_model.save_model(
+            depth_model_checkpoint_path.format(train_step), train_step, optimizer)
 
-                if train_step >= validation_start_step and validation_available:
-                    # Switch to validation mode
-                    depth_model.eval()
-
-                    with torch.no_grad():
-                        best_results = validate(
-                            depth_model=depth_model,
-                            dataloader=val_dataloader,
-                            transforms=val_transforms,
-                            outlier_removal=outlier_removal,
-                            ground_truths=ground_truths,
-                            step=train_step,
-                            best_results=best_results,
-                            min_evaluate_depth=min_evaluate_depth,
-                            max_evaluate_depth=max_evaluate_depth,
-                            device=device,
-                            summary_writer=val_summary_writer,
-                            n_summary_display=n_summary_display,
-                            log_path=log_path)
-
-                    # Switch back to training
-                    depth_model.train()
-
-                # Save checkpoints
-                depth_model.save_model(
-                    depth_model_checkpoint_path.format(train_step), train_step, optimizer)
-
-                pose_model.save_model(
-                    pose_model_checkpoint_path.format(train_step), train_step, optimizer)
-
-    # Save checkpoints
-    depth_model.save_model(
-        depth_model_checkpoint_path.format(train_step), train_step, optimizer)
-
-    pose_model.save_model(
-        pose_model_checkpoint_path.format(train_step), train_step, optimizer)
+        pose_model.save_model(
+            pose_model_checkpoint_path.format(train_step), train_step, optimizer)
 
 def validate(depth_model,
              dataloader,

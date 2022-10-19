@@ -14,6 +14,7 @@ https://arxiv.org/pdf/2108.10531.pdf
   year={2021}
 }
 '''
+import os
 import torch
 import networks
 
@@ -201,6 +202,6 @@ class PoseNetModel(object):
         '''
         Allows multi-gpu split along batch
         '''
-
-        self.encoder = torch.nn.DataParallel(self.encoder)
-        self.decoder = torch.nn.DataParallel(self.decoder)
+        device_ids = [_ for _ in range(len(os.environ['CUDA_VISIBLE_DEVICES'].split(",")))]
+        self.encoder = torch.nn.DataParallel(self.encoder, device_ids=device_ids)
+        self.decoder = torch.nn.DataParallel(self.decoder, device_ids=device_ids)

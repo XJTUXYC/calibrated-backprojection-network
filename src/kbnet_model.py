@@ -14,6 +14,7 @@ https://arxiv.org/pdf/2108.10531.pdf
   year={2021}
 }
 '''
+import os
 import torch, torchvision
 import log_utils, losses, networks, net_utils
 
@@ -409,10 +410,10 @@ class KBNetModel(object):
         '''
         Allows multi-gpu split along batch
         '''
-
-        self.sparse_to_dense_pool = torch.nn.DataParallel(self.sparse_to_dense_pool)
-        self.encoder = torch.nn.DataParallel(self.encoder)
-        self.decoder = torch.nn.DataParallel(self.decoder)
+        device_ids = [_ for _ in range(len(os.environ['CUDA_VISIBLE_DEVICES'].split(",")))]
+        self.sparse_to_dense_pool = torch.nn.DataParallel(self.sparse_to_dense_pool, device_ids=device_ids)
+        self.encoder = torch.nn.DataParallel(self.encoder, device_ids=device_ids)
+        self.decoder = torch.nn.DataParallel(self.decoder, device_ids=device_ids)
 
     def log_summary(self,
                     summary_writer,
