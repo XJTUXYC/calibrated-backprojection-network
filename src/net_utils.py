@@ -1703,6 +1703,46 @@ def project_to_pixel(points, pose, intrinsics, shape):
     # Reshape to N x 2 x H x W
     return points.view(n_batch, 2, n_height, n_width)
 
+def compute_pose(depth, flow, intrinsics, shape):
+    n_batch, _, n_height, n_width = shape
+
+    # Reshape depth as N x 1 x (H x W)
+    depth = depth.view(n_batch, 1, -1)
+    
+    # Reshape flow as N x 1 x (H x W)
+    flow = flow.view(n_batch, 2, -1)
+    
+    # Create homogeneous coordinates [x, y, 1]
+    xy_h = meshgrid(n_batch, n_height, n_width, device=depth.device, homogeneous=True)
+
+    # Reshape pixel coordinates to N x 3 x (H x W)
+    xy_h = xy_h.view(n_batch, 3, -1)
+
+    # K^-1 [x, y, 1] z, N x 3 x (H x W)
+    points = torch.matmul(torch.inverse(intrinsics), xy_h) * depth
+
+    # Make homogeneous, N x 4 x (H x W)
+    points = torch.cat([points, torch.ones_like(depth)], dim=1)
+    
+    xy_h[:, 0:2, :] = xy_h[:, 0:2, :] + flow
+    points_ref_one = torch.matmul(torch.inverse(intrinsics), xy_h) # N x 3 x (H x W)
+    depth_ref = depth # N x 1 x (H x W)
+    
+    max_num = 10
+    
+    for _ in range(max_num):
+        points_ref = points_ref_one * depth_ref # N x 3 x (H x W)
+        points_ref = torch.cat([points_ref, torch.ones_like(depth_ref)], dim=1) # N x 4 x (H x W)
+        
+        pose = ICP(points, points_ref) # N x 3 x 4
+        
+        points_ref = torch.matmul(pose, points) # N x 3 x (H x W)
+        depth_ref_e  = torch.unsqueeze(points_ref[:, 2, :], dim=1) - depth_ref # N x 1 x (H x W)
+        depth_ref = depth_ref + depth_ref_e # N x 1 x (H x W)
+        
+def ICP(points, points_ref):
+    pass
+
 def grid_sample(image, target_xy, shape, padding_mode='border'):
     '''
     Samples the image at x, y locations to target x, y locations
