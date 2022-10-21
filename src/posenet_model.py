@@ -56,7 +56,7 @@ class PoseNetModel(object):
         elif encoder_type == 'resnet18':
             self.encoder = networks.ResNetEncoder(
                 n_layer=18,
-                input_channels=6 +1,
+                input_channels=6 + 1,
                 n_filters=[16, 32, 64, 128, 256],
                 weight_initializer=weight_initializer,
                 activation_func=activation_func,
