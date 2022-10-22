@@ -351,7 +351,7 @@ class KBNetModel(object):
         self.decoder.to(device)
         self.sparse_to_dense_pool.to(device)
 
-    def save_model(self, checkpoint_path, step, optimizer):
+    def save_model(self, checkpoint_path, epoch, optimizer):
         '''
         Save weights of the model to checkpoint path
 
@@ -366,7 +366,7 @@ class KBNetModel(object):
 
         checkpoint = {}
         # Save training state
-        checkpoint['train_step'] = step
+        checkpoint['epoch'] = epoch
         checkpoint['optimizer_state_dict'] = optimizer.state_dict()
 
         # Save encoder and decoder weights

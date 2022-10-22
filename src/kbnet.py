@@ -27,7 +27,7 @@ from kbnet_model import KBNetModel
 from posenet_model import PoseNetModel
 import global_constants as settings
 from transforms import Transforms
-from net_utils import OutlierRemoval, ICP
+from net_utils import OutlierRemoval, ICP, meshgrid
 from torchvision import models
 from torchvision.utils import flow_to_image
 
@@ -105,13 +105,13 @@ def train(train_image_path,
         os.makedirs(checkpoint_path)
 
     # Set up checkpoint and event paths
-    depth_model_checkpoint_path = os.path.join(checkpoint_path, 'depth_model-{}.pth')
-    pose_model_checkpoint_path = os.path.join(checkpoint_path, 'pose_model-{}.pth')
+    best_depth_model_checkpoint_path = os.path.join(checkpoint_path, 'best_depth_model-{}.pth')
+    best_pose_model_checkpoint_path = os.path.join(checkpoint_path, 'best_pose_model-{}.pth')
     log_path = os.path.join(checkpoint_path, 'results.txt')
     event_path = os.path.join(checkpoint_path, 'events')
 
     best_results = {
-        'step': -1,
+        'epoch': -1,
         'mae': np.infty,
         'rmse': np.infty,
         'imae': np.infty,
@@ -381,6 +381,10 @@ def train(train_image_path,
         ],
         lr=learning_rate)
 
+    xy = meshgrid(n_batch, n_height, n_width, device=device, homogeneous=False)
+    xy[:,0,:,:] = xy[:,0,:,:] / (n_width - 1)
+    xy[:,1,:,:] = xy[:,1,:,:] / (n_height - 1)
+    
     # Start training
     train_step = 0
     time_start = time.time()
@@ -456,8 +460,8 @@ def train(train_image_path,
             # data_utils.plot_flow(grid)
             
             # time_start=time.time()
-            pose01 = pose_model.forward(image0, image1, 1/output_depth0)
-            pose02 = pose_model.forward(image0, image2, 1/output_depth0)
+            pose01 = pose_model.forward(image0, image1, 1/output_depth0, xy)
+            pose02 = pose_model.forward(image0, image2, 1/output_depth0, xy)
             # time_end=time.time()
             # print('time cost pose',1000*(time_end-time_start),'ms')
             
@@ -508,7 +512,7 @@ def train(train_image_path,
             train_step, n_train_step, loss.item(), time_elapse, time_remain),
             log_path)
 
-        if  validation_available:
+        if validation_available:
             # Switch to validation mode
             depth_model.eval()
 
@@ -519,7 +523,7 @@ def train(train_image_path,
                     transforms=val_transforms,
                     outlier_removal=outlier_removal,
                     ground_truths=ground_truths,
-                    step=train_step,
+                    epoch=epoch,
                     best_results=best_results,
                     min_evaluate_depth=min_evaluate_depth,
                     max_evaluate_depth=max_evaluate_depth,
@@ -530,20 +534,21 @@ def train(train_image_path,
 
             # Switch back to training
             depth_model.train()
-
+        
         # Save checkpoints
-        depth_model.save_model(
-            depth_model_checkpoint_path.format(train_step), train_step, optimizer)
+        if epoch == best_results['epoch']:
+            depth_model.save_model(
+            best_depth_model_checkpoint_path.format(epoch), epoch, optimizer)
 
-        pose_model.save_model(
-            pose_model_checkpoint_path.format(train_step), train_step, optimizer)
+            pose_model.save_model(
+            best_pose_model_checkpoint_path.format(epoch), epoch, optimizer)
 
 def validate(depth_model,
              dataloader,
              transforms,
              outlier_removal,
              ground_truths,
-             step,
+             epoch,
              best_results,
              min_evaluate_depth,
              max_evaluate_depth,
@@ -646,7 +651,7 @@ def validate(depth_model,
         depth_model.log_summary(
             summary_writer=summary_writer,
             tag='eval',
-            step=step,
+            epoch=epoch,
             image0=torch.cat(image_summary, dim=0),
             output_depth0=torch.cat(output_depth_summary, dim=0),
             sparse_depth0=torch.cat(sparse_depth_summary, dim=0),
@@ -658,10 +663,10 @@ def validate(depth_model,
     # Print validation results to console
     log('Validation results:', log_path)
     log('{:>8}  {:>8}  {:>8}  {:>8}  {:>8}'.format(
-        'Step', 'MAE', 'RMSE', 'iMAE', 'iRMSE'),
+        'Epoch', 'MAE', 'RMSE', 'iMAE', 'iRMSE'),
         log_path)
     log('{:8}  {:8.3f}  {:8.3f}  {:8.3f}  {:8.3f}'.format(
-        step, mae, rmse, imae, irmse),
+        epoch, mae, rmse, imae, irmse),
         log_path)
 
     n_improve = 0
@@ -675,7 +680,7 @@ def validate(depth_model,
         n_improve = n_improve + 1
 
     if n_improve > 2:
-        best_results['step'] = step
+        best_results['epoch'] = epoch
         best_results['mae'] = mae
         best_results['rmse'] = rmse
         best_results['imae'] = imae
@@ -683,10 +688,10 @@ def validate(depth_model,
 
     log('Best results:', log_path)
     log('{:>8}  {:>8}  {:>8}  {:>8}  {:>8}'.format(
-        'Step', 'MAE', 'RMSE', 'iMAE', 'iRMSE'),
+        'Epoch', 'MAE', 'RMSE', 'iMAE', 'iRMSE'),
         log_path)
     log('{:8}  {:8.3f}  {:8.3f}  {:8.3f}  {:8.3f}'.format(
-        best_results['step'],
+        best_results['epoch'],
         best_results['mae'],
         best_results['rmse'],
         best_results['imae'],
