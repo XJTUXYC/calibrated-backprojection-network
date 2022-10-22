@@ -14,9 +14,10 @@ https://arxiv.org/pdf/2108.10531.pdf
   year={2021}
 }
 '''
+from matplotlib import pyplot as plt
 import numpy as np
 from PIL import Image
-
+import torchvision.transforms.functional as F
 
 def read_paths(filepath):
     '''
@@ -238,3 +239,20 @@ def load_calibration(path):
                 except ValueError:
                     pass
     return data
+
+def plot_flow(imgs, **imshow_kwargs):
+    if not isinstance(imgs[0], list):
+        # Make a 2d grid even if there's just 1 row
+        imgs = [imgs]
+
+    num_rows = len(imgs)
+    num_cols = len(imgs[0])
+    _, axs = plt.subplots(nrows=num_rows, ncols=num_cols, squeeze=False)
+    for row_idx, row in enumerate(imgs):
+        for col_idx, img in enumerate(row):
+            ax = axs[row_idx, col_idx]
+            img = F.to_pil_image(img.to("cpu"))
+            ax.imshow(np.asarray(img), **imshow_kwargs)
+            ax.set(xticklabels=[], yticklabels=[], xticks=[], yticks=[])
+
+    plt.tight_layout()

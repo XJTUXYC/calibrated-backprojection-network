@@ -15,6 +15,7 @@ https://arxiv.org/pdf/2108.10531.pdf
 }
 '''
 import os, time
+from matplotlib import pyplot as plt
 import numpy as np
 import torch
 from PIL import Image
@@ -26,8 +27,9 @@ from kbnet_model import KBNetModel
 from posenet_model import PoseNetModel
 import global_constants as settings
 from transforms import Transforms
-from net_utils import OutlierRemoval
-
+from net_utils import OutlierRemoval, ICP
+from torchvision import models
+from torchvision.utils import flow_to_image
 
 def train(train_image_path,
           train_sparse_depth_path,
@@ -215,6 +217,7 @@ def train(train_image_path,
         device=device)
 
     parameters_depth_model = depth_model.parameters()
+    # print(sum(param.numel() for param in parameters_depth_model))
 
     depth_model.train()
 
@@ -227,6 +230,7 @@ def train(train_image_path,
         device=device)
 
     parameters_pose_model = pose_model.parameters()
+    # print(sum(param.numel() for param in parameters_pose_model))
 
     pose_model.train()
 
@@ -235,6 +239,12 @@ def train(train_image_path,
 
     if pose_model_restore_path is not None and pose_model_restore_path != '':
         pose_model.restore_model(pose_model_restore_path)
+
+    # Bulid FlowNet (only needed for training) network
+    # flow_model = models.optical_flow.raft_small(pretrained=True).to(device)
+    # flow_model.eval()
+    # parameters_flow_model = flow_model.parameters()
+    # print(sum(param.numel() for param in parameters_flow_model))
 
     # Set up tensorboard summary writers
     train_summary_writer = SummaryWriter(event_path + '-train')
@@ -299,7 +309,8 @@ def train(train_image_path,
         weight_initializer=weight_initializer,
         activation_func=activation_func,
         parameters_depth_model=parameters_depth_model,
-        parameters_pose_model=parameters_pose_model)
+        # parameters_pose_model=parameters_pose_model
+        )
 
     log_training_settings(
         log_path,
@@ -366,7 +377,8 @@ def train(train_image_path,
         {
             'params' : parameters_pose_model,
             'weight_decay' : w_weight_decay_pose
-        }],
+        }
+        ],
         lr=learning_rate)
 
     # Start training
@@ -424,15 +436,31 @@ def train(train_image_path,
                     random_transform_probability=augmentation_probability)
 
             # Forward through the network
+            # time_start=time.time()
             output_depth0 = depth_model.forward(
                 image=image0,
                 sparse_depth=sparse_depth0,
                 validity_map_depth=filtered_validity_map_depth0,
                 intrinsics=intrinsics)
+            # time_end=time.time()
+            # print('time cost depth',1000*(time_end-time_start),'ms')
 
-            pose01 = pose_model.forward(image0, image1)
-            pose02 = pose_model.forward(image0, image2)
-
+            # time_start=time.time()
+            # with torch.no_grad():
+            #     flow01 = flow_model.forward(image0, image1)[-1]
+            #     flow02 = flow_model.forward(image0, image2)[-1]
+            # time_end=time.time()
+            # print('time cost flow',1000*(time_end-time_start),'ms')
+            # flow_imgs = flow_to_image(flow01)
+            # grid = [[one_of_image0, flow_img] for (one_of_image0, flow_img) in zip(image0, flow_imgs)]
+            # data_utils.plot_flow(grid)
+            
+            # time_start=time.time()
+            pose01 = pose_model.forward(image0, image1, 1/output_depth0)
+            pose02 = pose_model.forward(image0, image2, 1/output_depth0)
+            # time_end=time.time()
+            # print('time cost pose',1000*(time_end-time_start),'ms')
+            
             # Compute loss function
             loss, loss_info = depth_model.compute_loss(
                 image0=image0,
@@ -453,9 +481,6 @@ def train(train_image_path,
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-
-        image01 = loss_info.pop('image01')
-        image02 = loss_info.pop('image02')
 
         image01 = loss_info.pop('image01')
         image02 = loss_info.pop('image02')
