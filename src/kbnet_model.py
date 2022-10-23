@@ -418,7 +418,7 @@ class KBNetModel(object):
     def log_summary(self,
                     summary_writer,
                     tag,
-                    step,
+                    epoch,
                     image0=None,
                     image01=None,
                     image02=None,
@@ -548,7 +548,7 @@ class KBNetModel(object):
                         dim=3))
 
                 # Log distribution of output depth
-                summary_writer.add_histogram(tag + '_output_depth0_distro', output_depth0, global_step=step)
+                summary_writer.add_histogram(tag + '_output_depth0_distro', output_depth0, global_step=epoch)
 
             if output_depth0 is not None and sparse_depth0 is not None and validity_map0 is not None:
                 sparse_depth0_summary = sparse_depth0[0:n_display]
@@ -580,7 +580,7 @@ class KBNetModel(object):
                         dim=3))
 
                 # Log distribution of sparse depth
-                summary_writer.add_histogram(tag + '_sparse_depth0_distro', sparse_depth0, global_step=step)
+                summary_writer.add_histogram(tag + '_sparse_depth0_distro', sparse_depth0, global_step=epoch)
 
             if output_depth0 is not None and ground_truth0 is not None:
                 validity_map0 = torch.unsqueeze(ground_truth0[:, 1, :, :], dim=1)
@@ -615,23 +615,23 @@ class KBNetModel(object):
                         dim=3))
 
                 # Log distribution of ground truth
-                summary_writer.add_histogram(tag + '_ground_truth0_distro', ground_truth0, global_step=step)
+                summary_writer.add_histogram(tag + '_ground_truth0_distro', ground_truth0, global_step=epoch)
 
             if pose01 is not None:
                 # Log distribution of pose 1 to 0translation vector
-                summary_writer.add_histogram(tag + '_tx01_distro', pose01[:, 0, 3], global_step=step)
-                summary_writer.add_histogram(tag + '_ty01_distro', pose01[:, 1, 3], global_step=step)
-                summary_writer.add_histogram(tag + '_tz01_distro', pose01[:, 2, 3], global_step=step)
+                summary_writer.add_histogram(tag + '_tx01_distro', pose01[:, 0, 3], global_step=epoch)
+                summary_writer.add_histogram(tag + '_ty01_distro', pose01[:, 1, 3], global_step=epoch)
+                summary_writer.add_histogram(tag + '_tz01_distro', pose01[:, 2, 3], global_step=epoch)
 
             if pose02 is not None:
                 # Log distribution of pose 2 to 0 translation vector
-                summary_writer.add_histogram(tag + '_tx02_distro', pose02[:, 0, 3], global_step=step)
-                summary_writer.add_histogram(tag + '_ty02_distro', pose02[:, 1, 3], global_step=step)
-                summary_writer.add_histogram(tag + '_tz02_distro', pose02[:, 2, 3], global_step=step)
+                summary_writer.add_histogram(tag + '_tx02_distro', pose02[:, 0, 3], global_step=epoch)
+                summary_writer.add_histogram(tag + '_ty02_distro', pose02[:, 1, 3], global_step=epoch)
+                summary_writer.add_histogram(tag + '_tz02_distro', pose02[:, 2, 3], global_step=epoch)
 
         # Log scalars to tensorboard
         for (name, value) in scalars.items():
-            summary_writer.add_scalar(tag + '_' + name, value, global_step=step)
+            summary_writer.add_scalar(tag + '_' + name, value, global_step=epoch)
 
         # Log image summaries to tensorboard
         if len(display_summary_image) > 1:
@@ -640,7 +640,7 @@ class KBNetModel(object):
             summary_writer.add_image(
                 display_summary_image_text,
                 torchvision.utils.make_grid(display_summary_image, nrow=n_display),
-                global_step=step)
+                global_step=epoch)
 
         if len(display_summary_depth) > 1:
             display_summary_depth = torch.cat(display_summary_depth, dim=2)
@@ -648,4 +648,4 @@ class KBNetModel(object):
             summary_writer.add_image(
                 display_summary_depth_text,
                 torchvision.utils.make_grid(display_summary_depth, nrow=n_display),
-                global_step=step)
+                global_step=epoch)

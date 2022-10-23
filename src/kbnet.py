@@ -492,7 +492,7 @@ def train(train_image_path,
         depth_model.log_summary(
             summary_writer=train_summary_writer,
             tag='train',
-            step=train_step,
+            epoch=epoch,
             image0=image0,
             image01=image01.detach().clone(),
             image02=image02.detach().clone(),
