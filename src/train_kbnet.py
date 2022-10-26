@@ -113,6 +113,8 @@ parser.add_argument('--w_sparse_depth',
     type=float, default=settings.W_SPARSE_DEPTH, help='Weight of sparse depth consistency loss')
 parser.add_argument('--w_smoothness',
     type=float, default=settings.W_SMOOTHNESS, help='Weight of local smoothness loss')
+parser.add_argument('--w_flow',
+    type=float, default=settings.W_FLOW, help='Weight of flow loss')
 parser.add_argument('--w_weight_decay_depth',
     type=float, default=settings.W_WEIGHT_DECAY_DEPTH, help='Weight of weight decay regularization for depth')
 parser.add_argument('--w_weight_decay_pose',

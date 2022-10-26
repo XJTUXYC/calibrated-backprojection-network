@@ -36,7 +36,7 @@ def activation_func(activation_fn):
     elif 'leaky_relu' in activation_fn:
         return torch.nn.LeakyReLU(negative_slope=0.20, inplace=True)
     elif 'relu' in activation_fn:
-        return torch.nn.ReLU()
+        return torch.nn.ReLU(inplace=True)
     elif 'elu' in activation_fn:
         return torch.nn.ELU()
     elif 'sigmoid' in activation_fn:
