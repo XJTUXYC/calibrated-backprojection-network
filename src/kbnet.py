@@ -910,7 +910,7 @@ def run(image_path,
 
     time_elapse = 0.0
 
-    for idx, (inputs, ground_truth) in enumerate(zip(dataloader, ground_truths)):
+    for idx, (inputs, ground_truth) in tqdm(enumerate(zip(dataloader, ground_truths))):
 
         # Move inputs to device
         inputs = [
