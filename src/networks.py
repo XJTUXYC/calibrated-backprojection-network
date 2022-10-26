@@ -14,6 +14,7 @@ https://arxiv.org/pdf/2108.10531.pdf
   year={2021}
 }
 '''
+import time
 import torch
 import net_utils
 
@@ -2068,10 +2069,13 @@ class PoseDecoder(torch.nn.Module):
         conv_output = self.conv(x)
         pose_mean = torch.mean(conv_output, [2, 3])
         dof = 0.01 * pose_mean
+        
+        # time_start = time.time()
         posemat = net_utils.pose_matrix(
             dof,
             rotation_parameterization=self.rotation_parameterization)
-
+        # time_end = time.time()
+        # print('time cost mat',1000*(time_end-time_start),'ms')
         return posemat
 
 

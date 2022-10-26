@@ -61,6 +61,7 @@ W_COLOR                                     = 0.15
 W_STRUCTURE                                 = 0.95
 W_SPARSE_DEPTH                              = 0.60
 W_SMOOTHNESS                                = 0.04
+W_FLOW                                      = 0.001
 W_WEIGHT_DECAY_DEPTH                        = 0.00
 W_WEIGHT_DECAY_POSE                         = 0.00
 
