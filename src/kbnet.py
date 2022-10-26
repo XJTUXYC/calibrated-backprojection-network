@@ -466,6 +466,7 @@ def train(train_image_path,
             # print('time cost pose',1000*(time_end-time_start),'ms')
             
             # Compute loss function
+            # time_start=time.time()
             loss, loss_info = depth_model.compute_loss(
                 image0=image0,
                 image1=image1,
@@ -480,6 +481,8 @@ def train(train_image_path,
                 w_structure=w_structure,
                 w_sparse_depth=w_sparse_depth,
                 w_smoothness=w_smoothness)
+            # time_end=time.time()
+            # print('time cost pose',1000*(time_end-time_start),'ms')
 
             # Compute gradient and backpropagate
             optimizer.zero_grad()
