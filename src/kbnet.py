@@ -309,7 +309,7 @@ def train(train_image_path,
         weight_initializer=weight_initializer,
         activation_func=activation_func,
         parameters_depth_model=parameters_depth_model,
-        # parameters_pose_model=parameters_pose_model
+        parameters_pose_model=parameters_pose_model
         )
 
     log_training_settings(
