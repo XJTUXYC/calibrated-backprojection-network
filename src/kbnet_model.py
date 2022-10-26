@@ -404,7 +404,7 @@ class KBNetModel(object):
                 pass
 
         # Return the current step and optimizer
-        return checkpoint['train_step'], optimizer
+        return checkpoint['epoch'], optimizer
 
     def data_parallel(self):
         '''
