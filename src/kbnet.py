@@ -946,7 +946,7 @@ def run(image_path,
             random_transform_probability=0.0)
 
         # Forward through network
-        output_depth = depth_model.forward(
+        output_depth, _ = depth_model.forward(
             image=image,
             sparse_depth=sparse_depth,
             validity_map_depth=filtered_validity_map_depth,
