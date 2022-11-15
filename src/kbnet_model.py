@@ -183,9 +183,9 @@ class KBNetModel(object):
 
         output_depth = self.min_predict_depth / (output[:,0,:,:].unsqueeze(1) + self.min_predict_depth / self.max_predict_depth)
         
-        output_un = output[:,1,:,:].unsqueeze(1)
+        un_map = output[:,1,:,:].unsqueeze(1)
 
-        return output_depth, output_un
+        return output_depth, un_map
 
     def compute_loss(self,
                      image0,

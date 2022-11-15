@@ -409,6 +409,9 @@ def train(train_image_path,
 
         for inputs in tqdm(train_dataloader):
 
+            if train_step == epoch:
+                break
+            
             train_step = train_step + 1
 
             # Fetch data
@@ -609,7 +612,7 @@ def validate(depth_model,
                 random_transform_probability=0.0)
 
         # Forward through network
-        output_depth = depth_model.forward(
+        output_depth, _ = depth_model.forward(
             image=image,
             sparse_depth=sparse_depth,
             validity_map_depth=filtered_validity_map_depth,
