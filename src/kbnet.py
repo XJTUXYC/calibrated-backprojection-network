@@ -441,7 +441,7 @@ def train(train_image_path,
 
             # Forward through the network
             # time_start=time.time()
-            output_depth0 = depth_model.forward(
+            output_depth0, un_map = depth_model.forward(
                 image=image0,
                 sparse_depth=sparse_depth0,
                 validity_map_depth=filtered_validity_map_depth0,
@@ -480,7 +480,9 @@ def train(train_image_path,
                 w_color=w_color,
                 w_structure=w_structure,
                 w_sparse_depth=w_sparse_depth,
-                w_smoothness=w_smoothness)
+                w_smoothness=w_smoothness,
+                validity_map_image0=un_map,
+                need_validity_map_image0=True)
             # time_end=time.time()
             # print('time cost pose',1000*(time_end-time_start),'ms')
 

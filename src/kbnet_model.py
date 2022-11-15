@@ -127,7 +127,7 @@ class KBNetModel(object):
 
         self.decoder = networks.MultiScaleDecoder(
             input_channels=n_filters_encoder[-1],
-            output_channels=1,
+            output_channels=2,
             n_resolution=1,
             n_filters=n_filters_decoder,
             n_skips=n_skips,
@@ -179,12 +179,13 @@ class KBNetModel(object):
 
         output = self.decoder(latent, skips, shape)[-1]
 
-        output_depth = torch.sigmoid(output)
+        output = torch.sigmoid(output)
 
-        output_depth = \
-            self.min_predict_depth / (output_depth + self.min_predict_depth / self.max_predict_depth)
+        output_depth = self.min_predict_depth / (output[:,0,:,:].unsqueeze(1) + self.min_predict_depth / self.max_predict_depth)
+        
+        output_un = output[:,1,:,:].unsqueeze(1)
 
-        return output_depth
+        return output_depth, output_un
 
     def compute_loss(self,
                      image0,
@@ -199,7 +200,9 @@ class KBNetModel(object):
                      w_color=0.15,
                      w_structure=0.95,
                      w_sparse_depth=0.60,
-                     w_smoothness=0.04):
+                     w_smoothness=0.04,
+                     validity_map_image0=None,
+                     need_validity_map_image0=False):
         '''
         Computes loss function
         l = w_{ph}l_{ph} + w_{sz}l_{sz} + w_{sm}l_{sm}
@@ -237,7 +240,10 @@ class KBNetModel(object):
         '''
 
         shape = image0.shape
-        validity_map_image0 = torch.ones_like(sparse_depth0)
+        if validity_map_image0 == None:
+            validity_map_image0 = torch.ones_like(sparse_depth0)
+        else:
+            need_validity_map_image0 = True
 
         # Backproject points to 3D camera coordinates
         points = net_utils.backproject_to_camera(output_depth0, intrinsics, shape)
@@ -257,22 +263,26 @@ class KBNetModel(object):
         loss_color01 = losses.color_consistency_loss_func(
             src=image01,
             tgt=image0,
-            w=validity_map_image0)
+            w=validity_map_image0,
+            need_w=need_validity_map_image0)
         loss_color02 = losses.color_consistency_loss_func(
             src=image02,
             tgt=image0,
-            w=validity_map_image0)
+            w=validity_map_image0,
+            need_w=need_validity_map_image0)
         loss_color = loss_color01 + loss_color02
 
         # Structural consistency loss function
         loss_structure01 = losses.structural_consistency_loss_func(
             src=image01,
             tgt=image0,
-            w=validity_map_image0)
+            w=validity_map_image0,
+            need_w=need_validity_map_image0)
         loss_structure02 = losses.structural_consistency_loss_func(
             src=image02,
             tgt=image0,
-            w=validity_map_image0)
+            w=validity_map_image0,
+            need_w=need_validity_map_image0)
         loss_structure = loss_structure01 + loss_structure02
 
         # Sparse depth consistency loss function

@@ -20,7 +20,7 @@ import torch
 EPSILON = 1e-8
 
 
-def color_consistency_loss_func(src, tgt, w, use_pytorch_impl=False):
+def color_consistency_loss_func(src, tgt, w, need_w, use_pytorch_impl=False):
     '''
     Computes the color consistency loss
 
@@ -35,11 +35,15 @@ def color_consistency_loss_func(src, tgt, w, use_pytorch_impl=False):
         torch.Tensor[float32] : mean absolute difference between source and target images
     '''
 
-    loss = torch.sum(w * torch.abs(tgt - src), dim=[1, 2, 3])
+    if need_w == False:
+        loss = torch.sum(w * torch.abs(tgt - src), dim=[1, 2, 3])
+        loss = torch.mean(loss / torch.sum(w, dim=[1, 2, 3]))
+    else:
+        loss = torch.mean((1-w) * torch.abs(tgt - src) + w)
+        
+    return loss
 
-    return torch.mean(loss / torch.sum(w, dim=[1, 2, 3]))
-
-def structural_consistency_loss_func(src, tgt, w):
+def structural_consistency_loss_func(src, tgt, w, need_w):
     '''
     Computes the structural consistency loss using SSIM
 
@@ -54,11 +58,16 @@ def structural_consistency_loss_func(src, tgt, w):
         torch.Tensor[float32] : mean 1 - SSIM scores between source and target images
     '''
 
-    scores = ssim(src, tgt)
-    scores = torch.nn.functional.interpolate(scores, size=w.shape[2:4], mode='nearest')
-    loss = torch.sum(w * scores, dim=[1, 2, 3])
-
-    return torch.mean(loss / torch.sum(w, dim=[1, 2, 3]))
+    scores_loss = ssim(src, tgt)
+    scores_loss = torch.nn.functional.interpolate(scores_loss, size=w.shape[2:4], mode='nearest')
+    
+    if need_w == False:
+        loss = torch.sum(w * scores_loss, dim=[1, 2, 3])
+        loss = torch.mean(loss / torch.sum(w, dim=[1, 2, 3]))
+    else:
+        loss = torch.mean((1-w) * scores_loss + w)
+    
+    return loss
 
 def sparse_depth_consistency_loss_func(src, tgt, w):
     '''
