@@ -409,8 +409,8 @@ def train(train_image_path,
 
         for inputs in tqdm(train_dataloader):
 
-            if train_step == epoch:
-                break
+            # if train_step == epoch:
+            #     break
             
             train_step = train_step + 1
 
