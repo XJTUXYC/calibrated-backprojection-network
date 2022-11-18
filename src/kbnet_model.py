@@ -127,7 +127,7 @@ class KBNetModel(object):
 
         self.decoder = networks.MultiScaleDecoder(
             input_channels=n_filters_encoder[-1],
-            output_channels=2,
+            output_channels=1,
             n_resolution=1,
             n_filters=n_filters_decoder,
             n_skips=n_skips,
@@ -181,11 +181,9 @@ class KBNetModel(object):
 
         output = torch.sigmoid(output)
 
-        output_depth = self.min_predict_depth / (output[:,0,:,:].unsqueeze(1) + self.min_predict_depth / self.max_predict_depth)
-        
-        un_map = output[:,1,:,:].unsqueeze(1)
+        output_depth = self.min_predict_depth / (output + self.min_predict_depth / self.max_predict_depth)
 
-        return output_depth, un_map
+        return output_depth
 
     def compute_loss(self,
                      image0,
@@ -201,8 +199,7 @@ class KBNetModel(object):
                      w_structure=0.95,
                      w_sparse_depth=0.60,
                      w_smoothness=0.04,
-                     validity_map_image0=None,
-                     need_validity_map_image0=False):
+                     validity_map_image0=None):
         '''
         Computes loss function
         l = w_{ph}l_{ph} + w_{sz}l_{sz} + w_{sm}l_{sm}
@@ -242,6 +239,7 @@ class KBNetModel(object):
         shape = image0.shape
         if validity_map_image0 == None:
             validity_map_image0 = torch.ones_like(sparse_depth0)
+            need_validity_map_image0 = False
         else:
             need_validity_map_image0 = True
 
