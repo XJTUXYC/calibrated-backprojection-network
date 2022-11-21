@@ -406,9 +406,9 @@ def train(train_image_path,
         ],
         lr=learning_rate)
 
-    xy = meshgrid(n_batch, n_height, n_width, device=device, homogeneous=False)
-    xy[:,0,:,:] = xy[:,0,:,:] / (n_width - 1)
-    xy[:,1,:,:] = xy[:,1,:,:] / (n_height - 1)
+    # xy = meshgrid(n_batch, n_height, n_width, device=device, homogeneous=False)
+    # xy[:,0,:,:] = xy[:,0,:,:] / (n_width - 1)
+    # xy[:,1,:,:] = xy[:,1,:,:] / (n_height - 1)
     
     # Start training
     train_step = 0
@@ -434,8 +434,8 @@ def train(train_image_path,
 
         for inputs in tqdm(train_dataloader):
 
-            if train_step == epoch:
-                break
+            # if train_step == epoch:
+            #     break
             
             train_step = train_step + 1
 
@@ -468,7 +468,7 @@ def train(train_image_path,
                     random_transform_probability=augmentation_probability)
 
             # Forward through the network
-            time_start=time.time()
+            # time_start=time.time()
             # output_depth0 = depth_model.forward(
             #     image=image0,
             #     sparse_depth=sparse_depth0,
@@ -477,8 +477,8 @@ def train(train_image_path,
             output = depth_model.forward(
                 image0,
                 sparse_depth0)
-            time_end=time.time()
-            print('time cost depth',1000*(time_end-time_start),'ms')
+            # time_end=time.time()
+            # print('time cost depth',1000*(time_end-time_start),'ms')
             output_depth0 = output['pred']
             
             # time_start=time.time()
