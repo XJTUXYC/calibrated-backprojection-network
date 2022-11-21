@@ -665,7 +665,8 @@ class NLSPNModel(nn.Module):
 
                 # Add to list of images to log
                 ground_truth0_summary = log_utils.colorize(
-                    (ground_truth0_summary / self.max_predict_depth).cpu(),
+                    # (ground_truth0_summary / self.max_predict_depth).cpu(),
+                    (ground_truth0_summary).cpu(),
                     colormap='viridis')
                 ground_truth0_error_summary = log_utils.colorize(
                     (ground_truth0_error_summary / 0.05).cpu(),

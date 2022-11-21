@@ -434,8 +434,8 @@ def train(train_image_path,
 
         for inputs in tqdm(train_dataloader):
 
-            # if train_step == epoch:
-            #     break
+            if train_step == epoch:
+                break
             
             train_step = train_step + 1
 
@@ -606,7 +606,7 @@ def validate(depth_model,
     validity_map_summary = []
     ground_truth_summary = []
 
-    for idx, (inputs, ground_truth) in enumerate(zip(dataloader, ground_truths)):
+    for idx, (inputs, ground_truth) in tqdm(enumerate(zip(dataloader, ground_truths))):
 
         # Move inputs to device
         inputs = [
