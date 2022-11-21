@@ -56,7 +56,7 @@ class PoseNetModel(object):
         elif encoder_type == 'resnet18':
             self.encoder = networks.ResNetEncoder(
                 n_layer=18,
-                input_channels=6 + 1 + 2,
+                input_channels=6,
                 n_filters=[16, 32, 64, 128, 256],
                 weight_initializer=weight_initializer,
                 activation_func=activation_func,
@@ -93,7 +93,7 @@ class PoseNetModel(object):
         self.data_parallel()
         self.to(self.device)
 
-    def forward(self, image0, image1, depth0, xy):
+    def forward(self, image0, image1):
         '''
         Forwards the inputs through the network
 
@@ -107,7 +107,7 @@ class PoseNetModel(object):
         '''
 
         # Forward through the network
-        latent, _ = self.encoder(torch.cat([image0, image1, depth0, xy], dim=1))
+        latent, _ = self.encoder(torch.cat([image0, image1], dim=1))
         output = self.decoder(latent)
 
         return output

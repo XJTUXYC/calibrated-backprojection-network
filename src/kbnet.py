@@ -24,6 +24,7 @@ from tqdm import tqdm
 import datasets, data_utils, eval_utils
 from log_utils import log
 from kbnet_model import KBNetModel
+from nlspnmodel import NLSPNModel
 from posenet_model import PoseNetModel
 import global_constants as settings
 from transforms import Transforms
@@ -94,7 +95,17 @@ def train(train_image_path,
           pose_model_restore_path=settings.RESTORE_PATH,
           # Hardware settings
           device=settings.DEVICE,
-          n_thread=settings.N_THREAD):
+          n_thread=settings.N_THREAD,
+          # NLSPN settings
+          prop_kernel=3,
+          network='resnet34',
+          from_scratch=False,
+          conf_prop=True,
+          prop_time=18,
+          affinity='TGASS',
+          affinity_gamma=0.5,
+          legacy=False,
+          preserve_input=False):
 
     if device == settings.CUDA or device == settings.GPU:
         device = torch.device(settings.CUDA)
@@ -198,23 +209,37 @@ def train(train_image_path,
     Set up the model
     '''
     # Build KBNet (depth) network
-    depth_model = KBNetModel(
-        input_channels_image=input_channels_image,
-        input_channels_depth=input_channels_depth,
-        min_pool_sizes_sparse_to_dense_pool=min_pool_sizes_sparse_to_dense_pool,
-        max_pool_sizes_sparse_to_dense_pool=max_pool_sizes_sparse_to_dense_pool,
-        n_convolution_sparse_to_dense_pool=n_convolution_sparse_to_dense_pool,
-        n_filter_sparse_to_dense_pool=n_filter_sparse_to_dense_pool,
-        n_filters_encoder_image=n_filters_encoder_image,
-        n_filters_encoder_depth=n_filters_encoder_depth,
-        resolutions_backprojection=resolutions_backprojection,
-        n_filters_decoder=n_filters_decoder,
-        deconv_type=deconv_type,
-        weight_initializer=weight_initializer,
-        activation_func=activation_func,
-        min_predict_depth=min_predict_depth,
-        max_predict_depth=max_predict_depth,
-        device=device)
+    # depth_model = KBNetModel(
+    #     input_channels_image=input_channels_image,
+    #     input_channels_depth=input_channels_depth,
+    #     min_pool_sizes_sparse_to_dense_pool=min_pool_sizes_sparse_to_dense_pool,
+    #     max_pool_sizes_sparse_to_dense_pool=max_pool_sizes_sparse_to_dense_pool,
+    #     n_convolution_sparse_to_dense_pool=n_convolution_sparse_to_dense_pool,
+    #     n_filter_sparse_to_dense_pool=n_filter_sparse_to_dense_pool,
+    #     n_filters_encoder_image=n_filters_encoder_image,
+    #     n_filters_encoder_depth=n_filters_encoder_depth,
+    #     resolutions_backprojection=resolutions_backprojection,
+    #     n_filters_decoder=n_filters_decoder,
+    #     deconv_type=deconv_type,
+    #     weight_initializer=weight_initializer,
+    #     activation_func=activation_func,
+    #     min_predict_depth=min_predict_depth,
+    #     max_predict_depth=max_predict_depth,
+    #     device=device)
+
+    depth_model = NLSPNModel(
+        prop_kernel=prop_kernel,
+        network=network,
+        from_scratch=from_scratch,
+        conf_prop=conf_prop,
+        prop_time=prop_time,
+        affinity=affinity,
+        affinity_gamma=affinity_gamma,
+        legacy=legacy,
+        preserve_input=preserve_input,
+        device=device,
+        min_predict_depth=min_predict_depth
+    )
 
     parameters_depth_model = depth_model.parameters()
     # print(sum(param.numel() for param in parameters_depth_model))
@@ -409,8 +434,8 @@ def train(train_image_path,
 
         for inputs in tqdm(train_dataloader):
 
-            # if train_step == epoch:
-            #     break
+            if train_step == epoch:
+                break
             
             train_step = train_step + 1
 
@@ -443,15 +468,19 @@ def train(train_image_path,
                     random_transform_probability=augmentation_probability)
 
             # Forward through the network
-            # time_start=time.time()
-            output_depth0 = depth_model.forward(
-                image=image0,
-                sparse_depth=sparse_depth0,
-                validity_map_depth=filtered_validity_map_depth0,
-                intrinsics=intrinsics)
-            # time_end=time.time()
-            # print('time cost depth',1000*(time_end-time_start),'ms')
-
+            time_start=time.time()
+            # output_depth0 = depth_model.forward(
+            #     image=image0,
+            #     sparse_depth=sparse_depth0,
+            #     validity_map_depth=filtered_validity_map_depth0,
+            #     intrinsics=intrinsics)
+            output = depth_model.forward(
+                image0,
+                sparse_depth0)
+            time_end=time.time()
+            print('time cost depth',1000*(time_end-time_start),'ms')
+            output_depth0 = output['pred']
+            
             # time_start=time.time()
             # with torch.no_grad():
             #     flow01 = flow_model.forward(image0, image1)[-1]
@@ -463,8 +492,8 @@ def train(train_image_path,
             # data_utils.plot_flow(grid)
             
             # time_start=time.time()
-            pose01 = pose_model.forward(image0, image1, 1/output_depth0, xy)
-            pose02 = pose_model.forward(image0, image2, 1/output_depth0, xy)
+            pose01 = pose_model.forward(image0, image1)
+            pose02 = pose_model.forward(image0, image2)
             # time_end=time.time()
             # print('time cost pose',1000*(time_end-time_start),'ms')
             
@@ -611,11 +640,16 @@ def validate(depth_model,
                 random_transform_probability=0.0)
 
         # Forward through network
-        output_depth, _ = depth_model.forward(
-            image=image,
-            sparse_depth=sparse_depth,
-            validity_map_depth=filtered_validity_map_depth,
-            intrinsics=intrinsics)
+        # output_depth, _ = depth_model.forward(
+        #     image=image,
+        #     sparse_depth=sparse_depth,
+        #     validity_map_depth=filtered_validity_map_depth,
+        #     intrinsics=intrinsics)
+        output = depth_model.forward(
+            image,
+            sparse_depth)
+        
+        output_depth = output['pred']
 
         if (idx % n_summary_display_interval) == 0 and summary_writer is not None:
             image_summary.append(image)

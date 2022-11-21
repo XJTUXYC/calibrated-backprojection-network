@@ -113,8 +113,6 @@ parser.add_argument('--w_sparse_depth',
     type=float, default=settings.W_SPARSE_DEPTH, help='Weight of sparse depth consistency loss')
 parser.add_argument('--w_smoothness',
     type=float, default=settings.W_SMOOTHNESS, help='Weight of local smoothness loss')
-parser.add_argument('--w_flow',
-    type=float, default=settings.W_FLOW, help='Weight of flow loss')
 parser.add_argument('--w_weight_decay_depth',
     type=float, default=settings.W_WEIGHT_DECAY_DEPTH, help='Weight of weight decay regularization for depth')
 parser.add_argument('--w_weight_decay_pose',
@@ -144,6 +142,47 @@ parser.add_argument('--device',
     type=str, default=settings.DEVICE, help='Device to use: gpu, cpu')
 parser.add_argument('--n_thread',
     type=int, default=settings.N_THREAD, help='Number of threads for fetching')
+# NLSPN settings
+parser.add_argument('--prop_kernel',
+                    type=int,
+                    default=3,
+                    help='propagation kernel size')
+parser.add_argument('--network',
+                    type=str,
+                    default='resnet34',
+                    choices=('resnet18', 'resnet34'),
+                    help='network name')
+parser.add_argument('--from_scratch',
+                    action='store_true',
+                    default=False,
+                    help='train from scratch')
+parser.add_argument('--conf_prop',
+                    action='store_true',
+                    default=True,
+                    help='confidence for propagation')
+parser.add_argument('--prop_time',
+                    type=int,
+                    default=18,
+                    help='number of propagation')
+parser.add_argument('--affinity',
+                    type=str,
+                    default='TGASS',
+                    choices=('AS', 'ASS', 'TC', 'TGASS'),
+                    help='affinity type (dynamic pos-neg, dynamic pos, '
+                         'static pos-neg, static pos, none')
+parser.add_argument('--affinity_gamma',
+                    type=float,
+                    default=0.5,
+                    help='affinity gamma initial multiplier '
+                         '(gamma = affinity_gamma * number of neighbors')
+parser.add_argument('--legacy',
+                    action='store_true',
+                    default=False,
+                    help='legacy code support for pre-trained models')
+parser.add_argument('--preserve_input',
+                    action='store_true',
+                    default=False,
+                    help='preserve input points by replacement')
 
 
 args = parser.parse_args()
@@ -247,4 +286,15 @@ if __name__ == '__main__':
           pose_model_restore_path=args.pose_model_restore_path,
           # Hardware settings
           device=args.device,
-          n_thread=args.n_thread)
+          n_thread=args.n_thread,
+          # NLSPN settings
+          prop_kernel=args.prop_kernel,
+          network=args.network,
+          from_scratch=args.from_scratch,
+          conf_prop=args.conf_prop,
+          prop_time=args.prop_time,
+          affinity=args.affinity,
+          affinity_gamma=args.affinity_gamma,
+          legacy=args.legacy,
+          preserve_input=args.preserve_input)
+          
