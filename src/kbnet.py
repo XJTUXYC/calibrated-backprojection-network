@@ -557,12 +557,16 @@ def train(train_image_path,
             depth_model.train()
         
         # Save checkpoints
-        # if epoch == best_results['epoch']:
-        #     depth_model.save_model(
-        #     best_depth_model_checkpoint_path.format(epoch), epoch, optimizer)
-
-        #     pose_model.save_model(
-        #     best_pose_model_checkpoint_path.format(epoch), epoch, optimizer)
+        if epoch == best_results['epoch']:
+            state = {
+                    'net': depth_model.module.state_dict(),
+                    'optimizer': optimizer.state_dict(),
+                    'epoch': epoch,
+                    }
+            torch.save(state, best_depth_model_checkpoint_path.format(epoch))
+            
+            pose_model.save_model(
+            best_pose_model_checkpoint_path.format(epoch), epoch, optimizer)
 
 def validate(depth_model,
              dataloader,
