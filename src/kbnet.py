@@ -22,8 +22,9 @@ from PIL import Image
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 import datasets, data_utils, eval_utils
-from log_utils import log
+from log_utils import log, log_summary
 from kbnet_model import KBNetModel
+from losses import compute_loss
 from nlspnmodel import NLSPNModel
 from posenet_model import PoseNetModel
 import global_constants as settings
@@ -200,7 +201,27 @@ def train(train_image_path,
     Set up the model
     '''
     # Build KBNet (depth) network
-    depth_model = NLSPNModel(min_predict_depth, max_predict_depth)
+    # depth_model = NLSPNModel(min_predict_depth, max_predict_depth)
+    # device_ids = [_ for _ in range(len(os.environ['CUDA_VISIBLE_DEVICES'].split(",")))]
+    # depth_model = torch.nn.DataParallel(depth_model, device_ids=device_ids)
+    
+    depth_model = KBNetModel(
+        input_channels_image=input_channels_image,
+        input_channels_depth=input_channels_depth,
+        min_pool_sizes_sparse_to_dense_pool=min_pool_sizes_sparse_to_dense_pool,
+        max_pool_sizes_sparse_to_dense_pool=max_pool_sizes_sparse_to_dense_pool,
+        n_convolution_sparse_to_dense_pool=n_convolution_sparse_to_dense_pool,
+        n_filter_sparse_to_dense_pool=n_filter_sparse_to_dense_pool,
+        n_filters_encoder_image=n_filters_encoder_image,
+        n_filters_encoder_depth=n_filters_encoder_depth,
+        resolutions_backprojection=resolutions_backprojection,
+        n_filters_decoder=n_filters_decoder,
+        deconv_type=deconv_type,
+        weight_initializer=weight_initializer,
+        activation_func=activation_func,
+        min_predict_depth=min_predict_depth,
+        max_predict_depth=max_predict_depth,
+        device=device)
 
     parameters_depth_model = depth_model.parameters()
     print(sum(param.numel() for param in parameters_depth_model))
@@ -220,11 +241,11 @@ def train(train_image_path,
 
     pose_model.train()
 
-    if depth_model_restore_path is not None and depth_model_restore_path != '':
-        depth_model.restore_model(depth_model_restore_path)
+    # if depth_model_restore_path is not None and depth_model_restore_path != '':
+    #     depth_model.restore_model(depth_model_restore_path)
 
-    if pose_model_restore_path is not None and pose_model_restore_path != '':
-        pose_model.restore_model(pose_model_restore_path)
+    # if pose_model_restore_path is not None and pose_model_restore_path != '':
+    #     pose_model.restore_model(pose_model_restore_path)
 
     # Bulid FlowNet (only needed for training) network
     # flow_model = models.optical_flow.raft_small(pretrained=True).to(device)
@@ -430,9 +451,17 @@ def train(train_image_path,
 
             # Forward through the network
             # time_start=time.time()
+            # output_depth0 = depth_model.forward(
+            #     image0,
+            #     sparse_depth0)
+            
             output_depth0 = depth_model.forward(
-                image0,
-                sparse_depth0)
+                image=image0,
+                sparse_depth=sparse_depth0,
+                validity_map_depth=filtered_validity_map_depth0,
+                intrinsics=intrinsics)
+            print(output_depth0.max())
+            print(output_depth0.min())
             # time_end=time.time()
             # print('time cost depth',1000*(time_end-time_start),'ms')
 
@@ -454,7 +483,7 @@ def train(train_image_path,
             
             # Compute loss function
             # time_start=time.time()
-            loss, loss_info = depth_model.compute_loss(
+            loss, loss_info = compute_loss(
                 image0=image0,
                 image1=image1,
                 image2=image2,
@@ -480,10 +509,11 @@ def train(train_image_path,
         image01 = loss_info.pop('image01')
         image02 = loss_info.pop('image02')
 
-        depth_model.log_summary(
+        log_summary(
             summary_writer=train_summary_writer,
             tag='train',
             epoch=epoch,
+            max_pred=max_predict_depth,
             image0=image0,
             image01=image01.detach().clone(),
             image02=image02.detach().clone(),
@@ -527,12 +557,12 @@ def train(train_image_path,
             depth_model.train()
         
         # Save checkpoints
-        if epoch == best_results['epoch']:
-            depth_model.save_model(
-            best_depth_model_checkpoint_path.format(epoch), epoch, optimizer)
+        # if epoch == best_results['epoch']:
+        #     depth_model.save_model(
+        #     best_depth_model_checkpoint_path.format(epoch), epoch, optimizer)
 
-            pose_model.save_model(
-            best_pose_model_checkpoint_path.format(epoch), epoch, optimizer)
+        #     pose_model.save_model(
+        #     best_pose_model_checkpoint_path.format(epoch), epoch, optimizer)
 
 def validate(depth_model,
              dataloader,
@@ -561,8 +591,10 @@ def validate(depth_model,
     validity_map_summary = []
     ground_truth_summary = []
 
-    for idx, (inputs, ground_truth) in enumerate(zip(dataloader, ground_truths)):
-
+    for idx, (inputs, ground_truth) in tqdm(enumerate(zip(dataloader, ground_truths))):
+        # if idx == 1:
+        #     break
+        
         # Move inputs to device
         inputs = [
             in_.to(device) for in_ in inputs
@@ -595,11 +627,9 @@ def validate(depth_model,
                 random_transform_probability=0.0)
 
         # Forward through network
-        output_depth, _ = depth_model.forward(
-            image=image,
-            sparse_depth=sparse_depth,
-            validity_map_depth=filtered_validity_map_depth,
-            intrinsics=intrinsics)
+        output_depth = depth_model.forward(
+            image,
+            sparse_depth)
 
         if (idx % n_summary_display_interval) == 0 and summary_writer is not None:
             image_summary.append(image)
@@ -639,10 +669,11 @@ def validate(depth_model,
 
     # Log to tensorboard
     if summary_writer is not None:
-        depth_model.log_summary(
+        log_summary(
             summary_writer=summary_writer,
             tag='eval',
             epoch=epoch,
+            max_pred=max_evaluate_depth,
             image0=torch.cat(image_summary, dim=0),
             output_depth0=torch.cat(output_depth_summary, dim=0),
             sparse_depth0=torch.cat(sparse_depth_summary, dim=0),

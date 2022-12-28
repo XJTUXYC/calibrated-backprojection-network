@@ -66,7 +66,7 @@ W_WEIGHT_DECAY_DEPTH                        = 0.00
 W_WEIGHT_DECAY_POSE                         = 0.00
 
 # Evaluation settings
-MIN_EVALUATE_DEPTH                          = 0.00
+MIN_EVALUATE_DEPTH                          = 1.5
 MAX_EVALUATE_DEPTH                          = 100.0
 
 # Checkpoint settings
