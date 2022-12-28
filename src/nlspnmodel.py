@@ -38,7 +38,7 @@ class NLSPNModel(nn.Module):
         self.prop_conf = False
         self.preserve_input = False
         self.always_clip = False
-        self.zero_init = False
+        self.zero_init = True
         self.min_predict_depth = min_predict_depth
         self.max_predict_depth = max_predict_depth
         
@@ -305,6 +305,7 @@ class NLSPNModel(nn.Module):
         
         # aff_off
         fd1_aff_off = self.dec11_aff(concat(fd1_aff, fe1_mix)) # b*(64+64)*H*W -> b*64*H*W
+        # print(self.dec11_aff[0].weight.data.mean())
         aff_off = self.dec11_aff_off(concat(fd1_aff_off, fe1)) # b*(64+64)*H*W -> b*24*H*W
         aff = aff_off[:, :self.num_neighbors, :, :] # b*8*H*W
         off = aff_off[:, self.num_neighbors:, :, :] # b*16*H*W

@@ -201,29 +201,29 @@ def train(train_image_path,
     Set up the model
     '''
     # Build KBNet (depth) network
-    # depth_model = NLSPNModel(min_predict_depth, max_predict_depth)
-    # device_ids = [_ for _ in range(len(os.environ['CUDA_VISIBLE_DEVICES'].split(",")))]
-    # depth_model = torch.nn.DataParallel(depth_model, device_ids=device_ids)
+    depth_model = NLSPNModel(min_predict_depth, max_predict_depth)
+    device_ids = [_ for _ in range(len(os.environ['CUDA_VISIBLE_DEVICES'].split(",")))]
+    depth_model = torch.nn.DataParallel(depth_model, device_ids=device_ids)
     
-    depth_model = KBNetModel(
-        input_channels_image=input_channels_image,
-        input_channels_depth=input_channels_depth,
-        min_pool_sizes_sparse_to_dense_pool=min_pool_sizes_sparse_to_dense_pool,
-        max_pool_sizes_sparse_to_dense_pool=max_pool_sizes_sparse_to_dense_pool,
-        n_convolution_sparse_to_dense_pool=n_convolution_sparse_to_dense_pool,
-        n_filter_sparse_to_dense_pool=n_filter_sparse_to_dense_pool,
-        n_filters_encoder_image=n_filters_encoder_image,
-        n_filters_encoder_depth=n_filters_encoder_depth,
-        resolutions_backprojection=resolutions_backprojection,
-        n_filters_decoder=n_filters_decoder,
-        deconv_type=deconv_type,
-        weight_initializer=weight_initializer,
-        activation_func=activation_func,
-        min_predict_depth=min_predict_depth,
-        max_predict_depth=max_predict_depth,
-        device=device)
+    # depth_model = KBNetModel(
+    #     input_channels_image=input_channels_image,
+    #     input_channels_depth=input_channels_depth,
+    #     min_pool_sizes_sparse_to_dense_pool=min_pool_sizes_sparse_to_dense_pool,
+    #     max_pool_sizes_sparse_to_dense_pool=max_pool_sizes_sparse_to_dense_pool,
+    #     n_convolution_sparse_to_dense_pool=n_convolution_sparse_to_dense_pool,
+    #     n_filter_sparse_to_dense_pool=n_filter_sparse_to_dense_pool,
+    #     n_filters_encoder_image=n_filters_encoder_image,
+    #     n_filters_encoder_depth=n_filters_encoder_depth,
+    #     resolutions_backprojection=resolutions_backprojection,
+    #     n_filters_decoder=n_filters_decoder,
+    #     deconv_type=deconv_type,
+    #     weight_initializer=weight_initializer,
+    #     activation_func=activation_func,
+    #     min_predict_depth=min_predict_depth,
+    #     max_predict_depth=max_predict_depth,
+    #     device=device)
 
-    parameters_depth_model = depth_model.parameters()
+    parameters_depth_model = list(depth_model.parameters())
     print(sum(param.numel() for param in parameters_depth_model))
 
     depth_model.train()
@@ -451,17 +451,17 @@ def train(train_image_path,
 
             # Forward through the network
             # time_start=time.time()
-            # output_depth0 = depth_model.forward(
-            #     image0,
-            #     sparse_depth0)
-            
             output_depth0 = depth_model.forward(
-                image=image0,
-                sparse_depth=sparse_depth0,
-                validity_map_depth=filtered_validity_map_depth0,
-                intrinsics=intrinsics)
-            print(output_depth0.max())
-            print(output_depth0.min())
+                image0,
+                sparse_depth0)
+            
+            # output_depth0 = depth_model.forward(
+            #     image=image0,
+            #     sparse_depth=sparse_depth0,
+            #     validity_map_depth=filtered_validity_map_depth0,
+            #     intrinsics=intrinsics)
+            # print(output_depth0.max())
+            # print(output_depth0.min())
             # time_end=time.time()
             # print('time cost depth',1000*(time_end-time_start),'ms')
 
